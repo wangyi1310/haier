@@ -14,7 +14,7 @@ from .helpers import try_read_as_bool
 
 _LOGGER = logging.getLogger(__name__)
 
-
+#定义空调
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities) -> None:
     await async_register_entity(
         hass,

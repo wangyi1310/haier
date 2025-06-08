@@ -15,12 +15,12 @@ from .core.device import HaierDevice
 
 _LOGGER = logging.getLogger(__name__)
 
+# 创建实体
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     hass.data.setdefault(DOMAIN, {
         'devices': [],
         'signals': []
     })
-
     await try_update_token(hass, entry)
     # 定时更新token
     token_signal = threading.Event()
@@ -28,14 +28,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     hass.data[DOMAIN]['signals'].append(token_signal)
 
     account_cfg = AccountConfig(hass, entry)
+    # 这里拿到entry配置
+    
     client = HaierClient(hass, account_cfg.client_id, account_cfg.token)
+    # 异步获取设备，并将设备添加到hass.data[DOMAIN]['devices']中
     devices = await client.get_devices()
     _LOGGER.debug('共获取到{}个设备'.format(len(devices)))
-
     hass.data[DOMAIN]['devices'] = devices
 
-    # 监听设备数据
+    # 设置一个信号量
     device_signal = threading.Event()
+
+    # 设置后台Haier运行的WebSocket任务，主要是监听数据总线，只想命令
     hass.async_create_background_task(client.listen_devices(devices, device_signal), 'haier-websocket')
     hass.data[DOMAIN]['signals'].append(device_signal)
 
@@ -71,6 +75,7 @@ async def try_update_token(hass: HomeAssistant, entry: ConfigEntry):
     :return:
     """
     cfg = AccountConfig(hass, entry)
+    cfg.save()
     client = HaierClient(hass, cfg.client_id, cfg.token)
 
     token_valid = True

@@ -25,7 +25,7 @@ class AccountConfig:
     def __init__(self, hass: HomeAssistant, config: ConfigEntry):
         self._hass = hass
         self._config = config
-
+        # config cofnig对象中获取account配置
         cfg = config.data.get('account', {})
         self.client_id = cfg.get('client_id', '')
         self.token = cfg.get('token', '')
@@ -34,6 +34,7 @@ class AccountConfig:
         self.default_load_all_entity = cfg.get('default_load_all_entity', True)
 
     def save(self, mobile: str = None):
+        # 保存配置到config.entry实体上
         self._hass.config_entries.async_update_entry(
             self._config,
             title='Haier: {}'.format(mobile) if mobile else self._config.title,
@@ -49,7 +50,7 @@ class AccountConfig:
             }
         )
 
-
+# 类似于设备的黑白名单
 class DeviceFilterConfig:
     """
     设备筛选配置

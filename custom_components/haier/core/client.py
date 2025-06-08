@@ -212,6 +212,7 @@ class HaierClient:
 
         return values
 
+    # 监听设备，并设置不同的设备的回调
     async def listen_devices(self, targetDevices: List[HaierDevice], signal: threading.Event):
         """
 
@@ -219,6 +220,8 @@ class HaierClient:
         :param targetDevices: 需要监听数据变化的设备
         :return:
         """
+
+        # 需要动态获取网关配置
         server = await self._get_wss_gateway_url()
 
         _LOGGER.debug("WSSGateway: %s", server)
@@ -229,19 +232,21 @@ class HaierClient:
         self._hass.data['current_listen_devices_process_id'] = process_id
 
         agClientId = self._token
+        # 当信号没有停止，一直执行循环
         while not signal.is_set():
+            # 发送心跳包，维持WS连接
             heartbeat_signal = threading.Event()
             try:
                 url = '{}/userag?token={}&agClientId={}'.format(server, self._token, agClientId)
                 _LOGGER.info('url: {}'.format(url))
                 async with self._session.ws_connect(url) as ws:
-                    # 每60秒发送一次心跳包
+                    # 每60秒发送一次心跳包，创建后台WSSwebsocket任务，维持WS连接
                     self._hass.async_create_background_task(
                         self._send_heartbeat(ws, agClientId, heartbeat_signal),
                         'haier-wss-heartbeat'
                     )
 
-                    # 订阅设备状态
+                    # 使用WS订阅设备状态
                     await ws.send_str(json.dumps({
                         'agClientId': agClientId,
                         'topic': 'BoundDevs',
@@ -251,15 +256,22 @@ class HaierClient:
                     }))
 
                     # 监听事件总线来的控制命令
+                    # 定义haier发送命令的回调函数
                     async def control_callback(e):
+                        # 调用ClientId
+                        # 设备ID
+                        # 设备属性
+                        # 如果有控制事件的发生，则调用send_command函数调用海尔接口发送命令到海尔设备，进行数据attributes触发数据改变事件
                         await self._send_command(ws, agClientId, e.data['deviceId'], e.data['attributes'])
 
+                    # 设置监听的设备的事件和回调方法，用于监听事件总线上的控制设备事件，并设置回调
                     cancel_control_listen = listen_event(self._hass, EVENT_DEVICE_CONTROL, control_callback)
 
                     fire_event(self._hass, EVENT_GATEWAY_STATUS_CHANGED, {
                         'status': True
                     })
 
+                    # 获取控制WS返回的数据，尽享打印
                     async for msg in ws:
                         if msg.type == aiohttp.WSMsgType.TEXT:
                             await self._parse_message(msg.data)
@@ -271,11 +283,15 @@ class HaierClient:
                             break
             except:
                 _LOGGER.exception("Connection disconnected. Waiting to retry.")
+                # 出现报错阻塞30s
                 await asyncio.sleep(30)
             finally:
+                # 取消监听事件总线的回调函数
                 cancel_control_listen()
+                # 发送停止心跳包，停止WS连接
                 heartbeat_signal.set()
                 if process_id == self._hass.data['current_listen_devices_process_id']:
+                    # publish一个网关状态变更的事件，通知实体网关已断开
                     fire_event(self._hass, EVENT_GATEWAY_STATUS_CHANGED, {
                         'status': False
                     })
@@ -284,6 +300,7 @@ class HaierClient:
 
                 _LOGGER.info('listen device stopped.')
 
+    # 维持心跳连接
     @staticmethod
     async def _send_heartbeat(ws, agClientId: str, event: threading.Event):
         while not event.is_set():
@@ -305,6 +322,7 @@ class HaierClient:
 
         _LOGGER.info("send heartbeat stopped")
 
+    # 解析恢复的Msg信息
     async def _parse_message(self, msg):
         msg = json.loads(msg)
         # 目前只关注设备attributes数据变动的消息，所以其他消息暂不处理
@@ -369,14 +387,17 @@ class HaierClient:
             # 有些attribute没有value字段。。。
             if 'value' not in attribute:
                 continue
-
+            # 获取最新的字段和数据，保存到attributes中
             attributes[attribute['name']] = attribute['value']
 
+        # 发布一个事件，，发布的事件回到事件总线上，通知实体数据已变更
+        # 进行控制后，数据肯定更新
         fire_event(self._hass, EVENT_DEVICE_DATA_CHANGED, {
             'deviceId': deviceId,
             'attributes': attributes
         })
 
+    # 海尔发送命令
     @staticmethod
     async def _send_command(ws, agClientId, deviceId: str, attributes: dict):
         """
@@ -388,6 +409,7 @@ class HaierClient:
         :return:
         """
         sn = random_str(32)
+        # 发送给Haier设备控制
         await ws.send_str(json.dumps({
             'agClientId': agClientId,
             "topic": "BatchCmdReq",
@@ -407,6 +429,7 @@ class HaierClient:
             }
         }))
 
+    # 获取网关URL
     async def _get_wss_gateway_url(self) -> str:
         """
         获取网关地址

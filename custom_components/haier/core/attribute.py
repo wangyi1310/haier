@@ -10,6 +10,8 @@ from custom_components.haier.helpers import equals_ignore_case, contains_any_ign
 
 _LOGGER = logging.getLogger(__name__)
 
+# 定义Haier设备的属性
+# 注意：所有的属性都应该是小写，否则会被覆盖
 class HaierAttribute:
 
     def __init__(self, key: str, display_name: str, platform: Platform, options: dict = {}, ext: dict = {}):

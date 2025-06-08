@@ -22,7 +22,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
         lambda device, attribute: HaierSelect(device, attribute)
     )
 
-
+#生成一个选择实体
 class HaierSelect(HaierAbstractEntity, SelectEntity):
 
     def __init__(self, device: HaierDevice, attribute: HaierAttribute):
@@ -34,6 +34,7 @@ class HaierSelect(HaierAbstractEntity, SelectEntity):
     def _update_value(self):
         self._attr_current_option = self._get_value_from_comparison_table(self._attributes_data[self._attribute.key])
 
+    #支持的选择属性
     def select_option(self, option: str) -> None:
         self._send_command({
             self._attribute.key: self._get_value_from_comparison_table(option)

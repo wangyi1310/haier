@@ -2,6 +2,7 @@ from homeassistant.const import Platform
 
 DOMAIN = 'haier'
 
+# 定义支持的设备
 SUPPORTED_PLATFORMS = [
     Platform.SELECT,
     Platform.NUMBER,
@@ -13,5 +14,6 @@ SUPPORTED_PLATFORMS = [
     Platform.COVER
 ]
 
+# 定义筛选的规则
 FILTER_TYPE_INCLUDE = 'include'
 FILTER_TYPE_EXCLUDE = 'exclude'

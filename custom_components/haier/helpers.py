@@ -1,3 +1,4 @@
+#公共类
 def try_read_as_bool(value):
     if isinstance(value, bool):
         return value
