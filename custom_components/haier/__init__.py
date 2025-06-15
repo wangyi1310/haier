@@ -3,6 +3,7 @@ import logging
 import threading
 import time
 
+import aiohttp
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceEntry
@@ -53,15 +54,23 @@ async def token_updater(hass: HomeAssistant, entry: ConfigEntry, signal: threadi
     :param signal:
     :return:
     """
+    CHECK_INTERVAL = 3600
+    CONNECTION_ERROR_RETRY_DELAY = 60
     while not signal.is_set():
-        if await try_update_token(hass, entry):
-            _LOGGER.info('token refreshed, reload integration...')
-            await hass.config_entries.async_reload(entry.entry_id)
-            break
-        else:
-            _LOGGER.debug('token is valid')
+        try:
+            if await try_update_token(hass, entry):
+                _LOGGER.info('token refreshed, reload integration...')
+                await hass.config_entries.async_reload(entry.entry_id)
+                break
+            else:
+                _LOGGER.debug('token is valid')
+        except Exception as e:
+            # 更新出现异常每隔1min再进行重试
+            _LOGGER.error('Unexpected error while update token err:{}'.format(str(e)))
+            await asyncio.sleep(CONNECTION_ERROR_RETRY_DELAY)
+            continue
 
-        await asyncio.sleep(3600)
+        await asyncio.sleep(CHECK_INTERVAL)
 
 async def try_update_token(hass: HomeAssistant, entry: ConfigEntry):
     """
